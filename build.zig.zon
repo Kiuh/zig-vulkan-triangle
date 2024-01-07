@@ -1,6 +1,7 @@
 .{
     .name = "zig-vulkan-triangle",
     .version = "0.0.1",
+    .paths = .{""},
     .dependencies = .{
         .vulkan = .{
             .url = "https://pkg.machengine.org/vulkan-zig-generated/5145693a4faacfde4b9502ff96a344d208a65949.tar.gz",

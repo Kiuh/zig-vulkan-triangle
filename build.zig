@@ -20,7 +20,6 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    exe.main_pkg_path = .{ .path = "." };
     try glfw.link(b, exe);
     exe.addModule("vulkan", vulkan_mod);
     exe.addModule("glfw", glfw_mod);
