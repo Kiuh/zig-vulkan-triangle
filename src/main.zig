@@ -4,8 +4,32 @@ const glfw = @import("glfw");
 const allocator = std.heap.page_allocator;
 
 /// Default GLFW error handling callback
-fn errorCallback(error_code: glfw.ErrorCode, description: [:0]const u8) void {
+fn glfwErrorCallback(error_code: glfw.ErrorCode, description: [:0]const u8) void {
     std.log.err("GLFW ERROR: {}: {s}\n", .{ error_code, description });
+}
+
+/// Vulkan debug message handling callback
+fn vkDebugMessage(
+    message_severity: vk.DebugUtilsMessageSeverityFlagsEXT,
+    message_type: vk.DebugUtilsMessageTypeFlagsEXT,
+    callback_data: ?*const vk.DebugUtilsMessengerCallbackDataEXT,
+    user_data: ?*anyopaque,
+) callconv(.C) vk.Bool32 {
+    _ = message_type;
+    _ = user_data;
+    const verbose_severity = comptime (vk.DebugUtilsMessageSeverityFlagsEXT{ .verbose_bit_ext = true }).toInt();
+    const info_severity = comptime (vk.DebugUtilsMessageSeverityFlagsEXT{ .info_bit_ext = true }).toInt();
+    const warning_severity = comptime (vk.DebugUtilsMessageSeverityFlagsEXT{ .warning_bit_ext = true }).toInt();
+    const error_severity = comptime (vk.DebugUtilsMessageSeverityFlagsEXT{ .error_bit_ext = true }).toInt();
+    const color: u32 = switch (message_severity.toInt()) {
+        verbose_severity => 37,
+        info_severity => 32,
+        warning_severity => 33,
+        error_severity => 31,
+        else => unreachable,
+    };
+    std.log.info("\x1b[{}m{s}\x1b[0m\n", .{ color, callback_data.?.p_message });
+    return vk.FALSE;
 }
 
 const BaseDispatch = vk.BaseWrapper(.{
@@ -29,6 +53,8 @@ const InstanceDispatch = vk.InstanceWrapper(.{
     .getPhysicalDeviceSurfaceSupportKHR = true,
     .getPhysicalDeviceMemoryProperties = true,
     .getDeviceProcAddr = true,
+    .createDebugUtilsMessengerEXT = true,
+    .destroyDebugUtilsMessengerEXT = true,
 });
 
 const Application = struct {
@@ -50,13 +76,18 @@ const Application = struct {
     enable_validation_layers: bool = undefined,
     validation_layers: std.ArrayList([*:0]const u8) = undefined,
 
+    // Debug Messager
+    debug_messager: vk.DebugUtilsMessengerEXT = undefined,
+
     //Vulkan variables
     instance: vk.Instance = undefined, // INIT VULKAN -> CREATE INSTANCE
 
     pub fn Create(_title: [*:0]const u8, _width: u32, _height: u32, _enable_validation_layers: bool) !Self {
         var self = Self{ .title = _title, .width = _width, .height = _height, .enable_validation_layers = _enable_validation_layers };
-        self.validation_layers = try std.ArrayList([*:0]const u8).initCapacity(allocator, 1);
-        try self.validation_layers.append("VK_LAYER_KHRONOS_validation");
+        if (_enable_validation_layers) {
+            self.validation_layers = try std.ArrayList([*:0]const u8).initCapacity(allocator, 1);
+            try self.validation_layers.append("VK_LAYER_KHRONOS_validation");
+        }
         return self;
     }
 
@@ -68,7 +99,7 @@ const Application = struct {
 
     fn initWindow(self: *Self) error{ FailedToInitializeGLFW, CannotCreateGLFWWindow }!void {
         // Init glfw
-        glfw.setErrorCallback(errorCallback);
+        glfw.setErrorCallback(glfwErrorCallback);
         if (!glfw.init(.{})) {
             std.log.err("Failed to initialize GLFW: {?s}", .{glfw.getErrorString()});
             return error.FailedToInitializeGLFW;
@@ -85,6 +116,17 @@ const Application = struct {
 
     fn initVulkan(self: *Self) !void {
         try self.createInstance();
+        try self.setupDebugMessenger();
+    }
+
+    fn setupDebugMessenger(self: *Self) !void {
+        if (!self.enable_validation_layers) {
+            return;
+        }
+
+        const debug_utils_create_info = vk.DebugUtilsMessengerCreateInfoEXT{ .message_severity = vk.DebugUtilsMessageSeverityFlagsEXT{ .verbose_bit_ext = true, .warning_bit_ext = true, .error_bit_ext = true }, .message_type = vk.DebugUtilsMessageTypeFlagsEXT{ .general_bit_ext = true, .validation_bit_ext = true, .performance_bit_ext = true }, .pfn_user_callback = vkDebugMessage };
+
+        self.debug_messager = try self.instance_dispatch.createDebugUtilsMessengerEXT(self.instance, &debug_utils_create_info, null);
     }
 
     fn checkValidationLayerSupport(self: *Self) !bool {
@@ -128,9 +170,13 @@ const Application = struct {
             return err.error_code;
         };
 
-        var instance_glfw_extensions = try std.ArrayList([*:0]const u8).initCapacity(allocator, glfw_extstantions.len + 1);
-        defer instance_glfw_extensions.deinit();
-        try instance_glfw_extensions.appendSlice(glfw_extstantions);
+        var required_instance_extensions = std.ArrayList([*:0]const u8).init(allocator);
+        defer required_instance_extensions.deinit();
+        try required_instance_extensions.appendSlice(glfw_extstantions);
+
+        if (self.enable_validation_layers) {
+            try required_instance_extensions.append(vk.extension_info.ext_debug_utils.name);
+        }
 
         const application_info = vk.ApplicationInfo{
             .p_application_name = "Application name",
@@ -155,8 +201,8 @@ const Application = struct {
                 }
                 break :blk undefined;
             },
-            .enabled_extension_count = @intCast(instance_glfw_extensions.items.len),
-            .pp_enabled_extension_names = @ptrCast(instance_glfw_extensions.items),
+            .enabled_extension_count = @intCast(required_instance_extensions.items.len),
+            .pp_enabled_extension_names = @ptrCast(required_instance_extensions.items),
         };
 
         self.instance = try self.base_dispatch.createInstance(&create_info, null);
@@ -170,7 +216,10 @@ const Application = struct {
     }
 
     pub fn deinit(self: *Self) void {
-        self.validation_layers.deinit();
+        if (self.enable_validation_layers) {
+            self.validation_layers.deinit();
+            self.instance_dispatch.destroyDebugUtilsMessengerEXT(self.instance, self.debug_messager, null);
+        }
         self.instance_dispatch.destroyInstance(self.instance, null);
         self.window.destroy();
         glfw.terminate();
@@ -178,7 +227,7 @@ const Application = struct {
 };
 
 pub fn main() !void {
-    var app = try Application.Create("Vulkan triangle", 800, 600, true);
+    var app = try Application.Create("Vulkan triangle", 1280, 720, true);
     defer app.deinit();
     app.run() catch |err| {
         std.log.err("Application exited with error: {any}", .{err});
