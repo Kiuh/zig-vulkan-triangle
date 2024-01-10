@@ -41,18 +41,6 @@ const BaseDispatch = vk.BaseWrapper(.{
 
 const InstanceDispatch = vk.InstanceWrapper(.{
     .destroyInstance = true,
-    .createDevice = true,
-    .destroySurfaceKHR = true,
-    .enumeratePhysicalDevices = true,
-    .getPhysicalDeviceProperties = true,
-    .enumerateDeviceExtensionProperties = true,
-    .getPhysicalDeviceSurfaceFormatsKHR = true,
-    .getPhysicalDeviceSurfacePresentModesKHR = true,
-    .getPhysicalDeviceSurfaceCapabilitiesKHR = true,
-    .getPhysicalDeviceQueueFamilyProperties = true,
-    .getPhysicalDeviceSurfaceSupportKHR = true,
-    .getPhysicalDeviceMemoryProperties = true,
-    .getDeviceProcAddr = true,
     .createDebugUtilsMessengerEXT = true,
     .destroyDebugUtilsMessengerEXT = true,
 });
@@ -73,11 +61,11 @@ const Application = struct {
     instance_dispatch: InstanceDispatch = undefined, // INIT VULKAN -> CREATE INSTANCE
 
     // Validation
-    enable_validation_layers: bool = undefined,
-    validation_layers: std.ArrayList([*:0]const u8) = undefined,
+    enable_validation_layers: bool = undefined, // CREATE
+    validation_layers: std.ArrayList([*:0]const u8) = undefined, // CREATE
 
     // Debug Messager
-    debug_messager: vk.DebugUtilsMessengerEXT = undefined,
+    debug_messager: vk.DebugUtilsMessengerEXT = undefined, // INIT VULKAN -> SETUP DEBUG MESSAGER
 
     //Vulkan variables
     instance: vk.Instance = undefined, // INIT VULKAN -> CREATE INSTANCE
@@ -124,7 +112,9 @@ const Application = struct {
             return;
         }
 
-        const debug_utils_create_info = vk.DebugUtilsMessengerCreateInfoEXT{ .message_severity = vk.DebugUtilsMessageSeverityFlagsEXT{ .verbose_bit_ext = true, .warning_bit_ext = true, .error_bit_ext = true }, .message_type = vk.DebugUtilsMessageTypeFlagsEXT{ .general_bit_ext = true, .validation_bit_ext = true, .performance_bit_ext = true }, .pfn_user_callback = vkDebugMessage };
+        const severnity = vk.DebugUtilsMessageSeverityFlagsEXT{ .verbose_bit_ext = true, .warning_bit_ext = true, .error_bit_ext = true };
+        const message_type = vk.DebugUtilsMessageTypeFlagsEXT{ .general_bit_ext = true, .validation_bit_ext = true, .performance_bit_ext = true };
+        const debug_utils_create_info = vk.DebugUtilsMessengerCreateInfoEXT{ .message_severity = severnity, .message_type = message_type, .pfn_user_callback = vkDebugMessage };
 
         self.debug_messager = try self.instance_dispatch.createDebugUtilsMessengerEXT(self.instance, &debug_utils_create_info, null);
     }
