@@ -1,2 +1,3 @@
 zig-*
 deps.zig
+.zig-cache

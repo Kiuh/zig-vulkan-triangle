@@ -1,41 +1,36 @@
 const std = @import("std");
-const glfw = @import("mach_glfw");
 
 pub fn build(b: *std.Build) void {
     // Define
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const vulkan_dep = b.dependency("vulkan", .{});
-    const vulkan_mod = vulkan_dep.module("vulkan-zig-generated");
-
-    const glfw_dep = b.dependency("mach_glfw", .{ .target = target, .optimize = optimize });
-    const glfw_mod = glfw_dep.module("mach-glfw");
-
     // Construct exe
     const exe = b.addExecutable(.{
         .name = "zig-vulkan-triangle",
-        .root_source_file = .{ .path = "src/main.zig" },
+        .root_source_file = b.path("main.zig"),
         .target = target,
         .optimize = optimize,
     });
 
-    try glfw.link(b, exe);
-    exe.addModule("vulkan", vulkan_mod);
-    exe.addModule("glfw", glfw_mod);
+    const vkzig_dep = b.dependency("vulkan_zig", .{
+        .registry = @as([]const u8, b.pathFromRoot("C://Vulkan//1.3.290.0//share//vulkan//registry//vk.xml")),
+    });
+    const vkzig_bindings = vkzig_dep.module("vulkan-zig");
+    exe.addModule("vulkan", vkzig_bindings);
 
     // Install Artifact
     b.installArtifact(exe);
 
     // Addictional run command
-    const run_cmd = b.addRunArtifact(exe);
+    const run_exe = b.addRunArtifact(exe);
 
-    run_cmd.step.dependOn(b.getInstallStep());
+    run_exe.step.dependOn(b.getInstallStep());
 
     if (b.args) |args| {
-        run_cmd.addArgs(args);
+        run_exe.addArgs(args);
     }
 
     const run_step = b.step("run", "Run the app");
-    run_step.dependOn(&run_cmd.step);
+    run_step.dependOn(&run_exe.step);
 }
