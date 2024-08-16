@@ -1,17 +1,17 @@
 const std = @import("std");
+const system_sdk = @import("system_sdk");
 
 pub fn build(b: *std.Build) void {
-    // Define
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
-    const vulkan_registry = b.dependency("vulkan_headers", .{}).path("registry/vk.xml");
 
     // Zglfw
-    const zglfw_dep = b.dependency("zglfw", .{});
+    const zglfw = b.dependency("zglfw", .{});
 
     // Vulkan-generator
     const vk_gen = b.dependency("vulkan_zig", .{}).artifact("vulkan-zig-generator");
     const vk_generate_cmd = b.addRunArtifact(vk_gen);
+    const vulkan_registry = b.dependency("vulkan_headers", .{}).path("registry/vk.xml");
     vk_generate_cmd.addFileArg(vulkan_registry);
     const vulkan_zig = b.addModule("vulkan-zig", .{
         .root_source_file = vk_generate_cmd.addOutputFileArg("vk.zig"),
@@ -25,7 +25,9 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    exe.root_module.addImport("zglfw", zglfw_dep.module("glfw"));
+    exe.root_module.addImport("zglfw", zglfw.module("root"));
+    exe.linkLibrary(zglfw.artifact("glfw"));
+    system_sdk.addLibraryPathsTo(exe);
     exe.root_module.addImport("vulkan", vulkan_zig);
     b.installArtifact(exe);
 

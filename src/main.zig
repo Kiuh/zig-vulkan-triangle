@@ -3,8 +3,13 @@ const vk = @import("vulkan");
 const glfw = @import("zglfw");
 
 pub fn main() !void {
-    const stdout = std.io.getStdOut().writer();
-    try stdout.print("Hello, world!\n", .{});
-    try stdout.print("VK {}\n", .{vk.API_VERSION_1_0});
-    try stdout.print("GLFW {}\n", .{glfw.Arrow});
+    try glfw.init();
+    defer glfw.terminate();
+
+    const window = try glfw.Window.create(600, 600, "Zig - vulkan", null);
+    defer window.destroy();
+
+    while (!window.shouldClose()) {
+        glfw.pollEvents();
+    }
 }
