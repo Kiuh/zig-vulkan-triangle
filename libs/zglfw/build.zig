@@ -4,6 +4,9 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
     const target = b.standardTargetOptions(.{});
 
+    // Vulkan-generator
+    const vk_zig = b.dependency("vulkan_zig", .{});
+
     const system_sdk = b.dependency("system_sdk", .{});
 
     const options = .{
@@ -37,6 +40,8 @@ pub fn build(b: *std.Build) void {
             .{ .name = "zglfw_options", .module = options_module },
         },
     });
+
+    module.addImport("vulkan", vk_zig.module("vulkan-zig"));
 
     const glfw = if (options.shared) blk: {
         const lib = b.addSharedLibrary(.{

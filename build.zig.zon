@@ -2,14 +2,7 @@
     .name = "zig-vulkan-triangle",
     .version = "0.0.1",
     .dependencies = .{
-        .vulkan_zig = .{
-            .url = "https://github.com/Snektron/vulkan-zig/archive/66b7b773bb61e2102025f2d5ff0ae8c5f53e19cc.tar.gz",
-            .hash = "12208958f173b8b81bfac797955f0416ab38b21d1f69d4ebf6c7ca460a828a41cd45",
-        },
-        .vulkan_headers = .{
-            .url = "https://github.com/KhronosGroup/Vulkan-Headers/archive/v1.3.290.tar.gz",
-            .hash = "1220a11136d20a5580bac95fd7a4ed4f1c50c3e37a90350fa45334e0c2062008ce6c",
-        },
+        .vulkan_zig = .{ .path = "libs/vulkan-zig" },
         .zglfw = .{ .path = "libs/zglfw" },
         .system_sdk = .{ .path = "libs/system-sdk" },
     },

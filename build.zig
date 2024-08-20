@@ -9,13 +9,7 @@ pub fn build(b: *std.Build) void {
     const zglfw = b.dependency("zglfw", .{});
 
     // Vulkan-generator
-    const vk_gen = b.dependency("vulkan_zig", .{}).artifact("vulkan-zig-generator");
-    const vk_generate_cmd = b.addRunArtifact(vk_gen);
-    const vulkan_registry = b.dependency("vulkan_headers", .{}).path("registry/vk.xml");
-    vk_generate_cmd.addFileArg(vulkan_registry);
-    const vulkan_zig = b.addModule("vulkan-zig", .{
-        .root_source_file = vk_generate_cmd.addOutputFileArg("vk.zig"),
-    });
+    const vk_zig = b.dependency("vulkan_zig", .{});
 
     // Main program exe
     const exe = b.addExecutable(.{
@@ -28,7 +22,8 @@ pub fn build(b: *std.Build) void {
     exe.root_module.addImport("zglfw", zglfw.module("root"));
     exe.linkLibrary(zglfw.artifact("glfw"));
     system_sdk.addLibraryPathsTo(exe);
-    exe.root_module.addImport("vulkan", vulkan_zig);
+
+    exe.root_module.addImport("vulkan", vk_zig.module("vulkan-zig"));
     b.installArtifact(exe);
 
     // Run command

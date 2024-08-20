@@ -2,6 +2,8 @@ const builtin = @import("builtin");
 const std = @import("std");
 const assert = std.debug.assert;
 
+const vk = @import("vulkan");
+
 const options = @import("zglfw_options");
 
 comptime {
@@ -1062,3 +1064,8 @@ fn _isLinuxDesktopLike() bool {
         else => false,
     };
 }
+
+// Vulkan Support
+pub extern fn glfwGetInstanceProcAddress(instance: vk.Instance, procname: [*:0]const u8) vk.PfnVoidFunction;
+pub extern fn glfwGetPhysicalDevicePresentationSupport(instance: vk.Instance, pdev: vk.PhysicalDevice, queuefamily: u32) c_int;
+pub extern fn glfwCreateWindowSurface(instance: vk.Instance, window: *Window, allocation_callbacks: ?*const vk.AllocationCallbacks, surface: *vk.SurfaceKHR) vk.Result;
